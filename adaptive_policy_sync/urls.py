@@ -64,6 +64,7 @@ urlpatterns = [
     re_path(r'^setup/isenext$', apsyncviews.setupisenext, name='setupisenext'),
     re_path(r'^setup/isecert$', apsyncviews.setupcert, name='setupisecert'),
     re_path(r'^setup/isepxgrid$', apsyncviews.setuppxgrid, name='setupisepxgrid'),
+    re_path(r'^setup/isepxgridcloud$', apsyncviews.setuppxgridcloud, name='setupisepxgridcloud'),
     re_path(r'^setup/meraki$', apsyncviews.setupmeraki, name='setupmeraki'),
     re_path(r'^setup/sync$', apsyncviews.setupsync, name='setupsync'),
     re_path(r'^setup/done$', apsyncviews.setupdone, name='setupdone'),

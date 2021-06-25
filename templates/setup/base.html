@@ -144,6 +144,14 @@
                             <a role="tab" href="/setup/isepxgrid" aria-current="false">ISE pxGrid</a>
                     {% endif %}
                     </li>
+                    {% if active == 7 %}
+                    <li class="md-tab__item active">
+                        <a role="tab" href="/setup/isepxgridcloud" aria-current="true">ISE pxGrid Cloud</a>
+                    {% else %}
+                    <li class="md-tab__item">
+                        <a role="tab" href="/setup/isepxgridcloud" aria-current="false">ISE pxGrid Cloud</a>
+                    {% endif %}
+                    </li>
                     {% if active == 5 %}
                         <li class="md-tab__item active">
                             <a role="tab" href="/setup/meraki" aria-current="true">Meraki Dashboard</a>

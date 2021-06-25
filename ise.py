@@ -1456,3 +1456,135 @@ class ERS(object):
             return result
         else:
             return ERS._pass_ersresponse(result, resp)
+
+    def create_tenant_access_token(self):
+        req_session = requests.Session()
+        req_session.verify = False
+        base_headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        url = "https://idm.tesseractinternal.com/idm/api/v1/oauth/token"
+        params = {
+                    'grant_type': 'password',
+                    'client_id': 'ac04554c-3321-4455-86be-259e9fc172ad',
+                    'client_secret': '76a0c807-f1ba-41fb-be04-222d13aa391b',
+                    'username': 'pxcloud-client',
+                    'password': '2ce06064-c347-41c1-baa4-8c8c1ea50fc7'
+                  }
+        return req_session.post(url, headers=base_headers, params=params)
+
+    def get_tenant_admin_token(self):
+        response = self.create_tenant_access_token()
+        token_response = response.json()
+        tenant_access_token = token_response['access_token']
+        return tenant_access_token
+
+    def get_regional_cluster(self):
+        device_id = "60cb4d72fb92257d96f2ad74"
+        cloud_access_token = self.get_tenant_admin_token()
+        req_session = requests.Session()
+        req_session.verify = False
+        # dxHub device registry url
+        dxhub_device_url = "https://maglev.maglevcloud3.tesseractinternal.com/api/uno/v1/registry/devices"
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers['x-auth-token'] = cloud_access_token
+        url = dxhub_device_url + "/" + device_id
+        response = req_session.get(url, headers=headers)
+        device_response = response.json()
+        return device_response['mgtInfo']['fqdn']
+
+    def get_sgts_pxgrid_cloud(self):
+        """
+        Get all Secure Group Tags via pxGrid Cloud.
+        """
+        req_session = requests.Session()
+        req_session.verify = False
+
+        cloud_access_token = self.get_tenant_admin_token()
+        regional_cluster = self.get_regional_cluster()
+        device_id = "60cb4d72fb92257d96f2ad74"
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers['x-auth-token'] = cloud_access_token
+        headers['X-API-PROXY-COMMUNICATION-STYLE'] = "sync"
+        headers['Accept'] = "application/json"
+
+        url_ers_sgts = "https://" + regional_cluster + "/api/dxhub/v2/apiproxy/request/" + device_id + "/direct/ers/config/sgt"
+        print("url_ers_sgts: " + url_ers_sgts)
+        response = req_session.get(url_ers_sgts, headers=headers)
+        # print(response.json())
+
+        out_objs = []
+        objs = response.json()
+        for o in objs["SearchResult"]["resources"]:
+            if len(o) > 1:
+                url_ers_sgt_by_id = url_ers_sgts + "/" + o["id"]
+                print("### url_ers_sgt_by_id: " + url_ers_sgt_by_id)
+                sgt = req_session.get(url_ers_sgt_by_id, headers=headers)
+                sgt_by_id_json = sgt.json()
+                # print(sgt_by_id_json)
+                out_objs.append(sgt_by_id_json["Sgt"])
+        # print(out_objs)
+        return {"success": 'True', "response": out_objs, "error": ''}
+
+    def get_sgacls_pxgrid_cloud(self):
+        """
+        Get all Secure Group ACLs via pxGrid Cloud.
+        """
+        req_session = requests.Session()
+        req_session.verify = False
+
+        cloud_access_token = self.get_tenant_admin_token()
+        regional_cluster = self.get_regional_cluster()
+        device_id = "60cb4d72fb92257d96f2ad74"
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers['x-auth-token'] = cloud_access_token
+        headers['X-API-PROXY-COMMUNICATION-STYLE'] = "sync"
+        headers['Accept'] = "application/json"
+
+        url_ers_sgacls = "https://" + regional_cluster + "/api/dxhub/v2/apiproxy/request/" + device_id + "/direct/ers/config/sgacl"
+        print("url_ers_sgts: " + url_ers_sgacls)
+        response = req_session.get(url_ers_sgacls, headers=headers)
+
+        out_objs = []
+        objs = response.json()
+        for o in objs["SearchResult"]["resources"]:
+            if len(o) > 1:
+                url_ers_sgacls_by_id = url_ers_sgacls + "/" + o["id"]
+                print("### url_ers_sgacls_by_id: " + url_ers_sgacls_by_id)
+                sgacls = req_session.get(url_ers_sgacls_by_id, headers=headers)
+                sgacls_by_id_json = sgacls.json()
+                out_objs.append(sgacls_by_id_json["Sgacl"])
+        return {"success": 'True', "response": out_objs, "error": ''}
+
+
+    def get_egressmatrixcell_pxgrid_cloud(self):
+        """
+        Get all TrustSec Egress Matrix Cells via pxGrid Cloud.
+        """
+        req_session = requests.Session()
+        req_session.verify = False
+
+        cloud_access_token = self.get_tenant_admin_token()
+        regional_cluster = self.get_regional_cluster()
+        device_id = "60cb4d72fb92257d96f2ad74"
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers['x-auth-token'] = cloud_access_token
+        headers['X-API-PROXY-COMMUNICATION-STYLE'] = "sync"
+        headers['Accept'] = "application/json"
+
+        url_ers_egressmatrixcell = "https://" + regional_cluster + "/api/dxhub/v2/apiproxy/request/" + device_id + "/direct/ers/config/egressmatrixcell"
+        print("url_ers_egressmatrixcell: " + url_ers_egressmatrixcell)
+        response = req_session.get(url_ers_egressmatrixcell, headers=headers)
+
+        out_objs = []
+        objs = response.json()
+        for o in objs["SearchResult"]["resources"]:
+            if len(o) > 1:
+                url_ers_egressmatrixcell_by_id = url_ers_egressmatrixcell + "/" + o["id"]
+                print("### url_ers_egressmatrixcell_by_id: " + url_ers_egressmatrixcell_by_id)
+                sgacls = req_session.get(url_ers_egressmatrixcell_by_id, headers=headers)
+                sgacls_by_id_json = sgacls.json()
+                out_objs.append(sgacls_by_id_json["EgressMatrixCell"])
+        return {"success": 'True', "response": out_objs, "error": ''}
+

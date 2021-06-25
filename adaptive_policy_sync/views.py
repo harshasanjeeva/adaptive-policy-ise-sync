@@ -155,6 +155,24 @@ def setuppxgrid(request):
     uploads = Upload.objects.all().exclude(description__contains="CertificateServices")
     return render(request, 'setup/isepxgrid.html', {"active": 4, "data": iseserver, "upload": uploads})
 
+def setuppxgridcloud(request):
+    if not request.user.is_authenticated:
+        return redirect('/login')
+
+    if request.method == 'POST':
+        form = UploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+
+    iseservers = ISEServer.objects.all()
+    if len(iseservers) > 0:
+        iseserver = iseservers[0]
+    else:
+        iseserver = None
+
+    uploads = Upload.objects.all().exclude(description__contains="CertificateServices")
+    return render(request, 'setup/isepxgridcloud.html', {"active": 7, "data": iseserver, "upload": uploads})
+
 
 def setupmeraki(request):
     if not request.user.is_authenticated:
