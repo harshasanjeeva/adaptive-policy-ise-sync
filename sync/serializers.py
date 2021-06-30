@@ -56,7 +56,7 @@ class ISEServerSerializer(serializers.ModelSerializer):
     class Meta:
         model = ISEServer
         fields = ('id', 'url', 'description', 'ipaddress', 'username', 'password', 'raw_data', 'force_rebuild',
-                  'skip_sync', 'last_update', 'last_sync', 'pxgrid_enable', 'pxgrid_ip', 'pxgrid_cliname',
+                  'skip_sync', 'last_update', 'last_sync', 'pxgrid_enable', 'pxgrid_ip','device_id', 'pxgrid_cliname',
                   'pxgrid_clicert', 'pxgrid_clikey', 'pxgrid_clipw', 'pxgrid_isecert')
         read_only_fields = ('id', 'url', 'raw_data', 'last_update', 'last_sync')
 

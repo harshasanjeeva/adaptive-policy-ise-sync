@@ -289,6 +289,7 @@ class ISEServer(models.Model):
     last_sync = models.DateTimeField(null=True, default=None, blank=True)
     pxgrid_enable = models.BooleanField(default=False, editable=True)
     pxgrid_ip = models.CharField("pxGrid Node IP or FQDN", max_length=64, null=True, blank=True, default=None)
+    device_id = models.CharField(max_length=64, null=True, blank=True, default=None, verbose_name="pxGrid Device ID")
     pxgrid_cliname = models.CharField(max_length=64, null=True, blank=True, default=None,
                                       verbose_name="pxGrid Client Name")
     pxgrid_clicert = models.ForeignKey(Upload, on_delete=models.SET_NULL, null=True, blank=True,
@@ -321,6 +322,19 @@ class ISEServer(models.Model):
         else:
             return url + ":9060"
 
+class ISECloud(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    raw_data = models.TextField(blank=True, null=True, default=None)
+    force_rebuild = models.BooleanField("Force Server Sync", default=False, editable=True)
+    skip_sync = models.BooleanField(default=False, editable=False)
+    last_update = models.DateTimeField(default=django.utils.timezone.now)
+    last_sync = models.DateTimeField(null=True, default=None, blank=True)
+    pxgrid_enable = models.BooleanField(default=False, editable=True)
+    skip_update = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "ISE Cloud"
+        verbose_name_plural = "ISE Cloud"
 
 @receiver(post_save, sender=ISEServer)
 def post_save_iseserver(sender, instance=None, created=False, **kwargs):
@@ -349,6 +363,8 @@ class SyncSession(models.Model):
     dashboard = models.ForeignKey(Dashboard, on_delete=models.SET_NULL, null=True, blank=True)
     iseserver = models.ForeignKey(ISEServer, on_delete=models.SET_NULL, null=True, blank=True,
                                   verbose_name="ISE Server")
+    isepxgridcloud = models.ForeignKey(ISECloud, on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="ISE Cloud")
     ise_source = models.BooleanField("Make ISE Config Base", default=True, editable=True)
     force_rebuild = models.BooleanField("Force All Server Sync", default=False, editable=True)
     sync_enabled = models.BooleanField("Perform Server Sync", default=True, editable=True)

@@ -20,11 +20,26 @@ def ingest_ise_data(accounts, log):
 
         ise = None
         a = sa.iseserver
-        append_log(log, "ise_monitor::ingest_server_data::Resync -", a.description)
-        ise = ERS(ise_node=a.ipaddress, ers_user=a.username, ers_pass=a.password, verify=False, disable_warnings=True)
-        sgts = ise.get_sgts(detail=True)
-        sgacls = ise.get_sgacls(detail=True)
-        sgpolicies = ise.get_egressmatrixcells(detail=True)
+        # append_log(log, "ise_monitor::ingest_server_data::Resync -", a.description)
+        ise = ERS(ise_node=None, ers_user=None, ers_pass=None, verify=False, disable_warnings=True, device_id = sa.iseserver.device_id)
+        # sgts = ise.get_sgts(detail=True)
+        # print("### sgts via pxGrid: ")
+        # print(sgts)
+        sgts = ise.get_sgts_pxgrid_cloud()
+        print("### sgts via pxGrid Cloud: ")
+        print(sgts)
+        # sgacls = ise.get_sgacls(detail=True)
+        # print("### sgacls via pxGrid : ")
+        # print(sgacls)
+        sgacls = ise.get_sgacls_pxgrid_cloud()
+        print("### sgacls via pxGrid Cloud : ")
+        print(sgacls)
+        # sgpolicies = ise.get_egressmatrixcells(detail=True)
+        # print("### sgpolicies via pxGrid: ")
+        # print(sgpolicies)
+        sgpolicies = ise.get_egressmatrixcell_pxgrid_cloud()
+        print("### sgpolicies via pxGrid Cloud: ")
+        print(sgpolicies)
         append_log(log, "ise_monitor::ingest_server_data::SGTs - ", len(sgts))
         append_log(log, "ise_monitor::ingest_server_data::SGACLs - ", len(sgacls))
         append_log(log, "ise_monitor::ingest_server_data::Policies - ", len(sgpolicies))
@@ -49,7 +64,7 @@ def ingest_ise_data(accounts, log):
 
 def digest_database_data(sa, log):
     append_log(log, "ise_monitor::digest_database_data::Account -", sa)
-    ise = ERS(ise_node=sa.iseserver.ipaddress, ers_user=sa.iseserver.username, ers_pass=sa.iseserver.password,
+    ise = ERS(ise_node=None, ers_user=None, ers_pass=None, device_id = sa.iseserver.device_id,
               verify=False, disable_warnings=True)
 
     if not sa.apply_changes:
@@ -143,162 +158,162 @@ def digest_database_data(sa, log):
                 o.last_update_data = {"tag": str(o), "error": "Exception: " + str(e)}
                 o.save()
 
-    acls = ACLData.objects.filter(Q(acl__do_sync=True) & Q(update_failed=False)).exclude(iseserver=None)
-    for o in acls:
-        if o.source_id and o.update_dest() == "ise":
-            if o.acl.push_delete:
-                try:
-                    ret = ise.delete_sgacl(o.source_id)
-                    append_log(log, "ise_monitor::digest_database_data::SGACL delete", ret)
-                    o.delete()
-                except Exception as e:  # pragma: no cover
-                    append_log(log, "ise_monitor::digest_database_data::SGACL Delete Exception", e,
-                               traceback.format_exc())
-                    o.update_failed = True
-                    o.last_update = make_aware(datetime.datetime.now())
-                    o.last_update_state = "False"
-                    o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
-                    o.save()
-            else:
-                try:
-                    ret = ise.update_sgacl(o.source_id, o.acl.cleaned_name(), o.acl.description, o.lookup_version(o),
-                                           o.lookup_rules(o).split("\n"), return_object=True)
-                    o.last_update = make_aware(datetime.datetime.now())
-                    o.last_update_data = ret
-                    o.last_update_state = str(ret.get("success", False))
-                    if ret["response"] and isinstance(ret["response"], dict):
-                        o.source_id = ret["response"]["id"]
-                        o.source_data = json.dumps(ret["response"])
-                        append_log(log, "ise_monitor::digest_database_data::Push SGACL update", o.source_id,
-                                   o.acl.cleaned_name(), o.acl.description, ret)
-                    else:     # pragma: no cover
-                        append_log(log, "ise_monitor::digest_database_data::SGACL Invalid Return", ret)
-                        o.update_failed = True
-                        o.last_update_state = "False"
-                        o.last_update_data = {"acl": str(o), "error": "SGACL Invalid Return"}
-                    o.save()
-                except Exception as e:     # pragma: no cover
-                    append_log(log, "ise_monitor::digest_database_data::SGACL Update Exception", e,
-                               traceback.format_exc())
-                    o.update_failed = True
-                    o.last_update = make_aware(datetime.datetime.now())
-                    o.last_update_state = "False"
-                    o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
-                    o.save()
-        elif o.update_dest() == "ise":
-            try:
-                ret = ise.add_sgacl(o.acl.cleaned_name(), o.acl.description, o.lookup_version(o),
-                                    o.lookup_rules(o).split("\n"), return_object=True)
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_data = ret
-                o.last_update_state = str(ret.get("success", False))
-                if ret["response"] and isinstance(ret["response"], dict):
-                    o.source_id = ret["response"]["id"]
-                    o.source_data = json.dumps(ret["response"])
-                    append_log(log, "ise_monitor::digest_database_data::Push SGACL create", o.acl.cleaned_name(),
-                               o.acl.description, ret)
-                else:     # pragma: no cover
-                    append_log(log, "ise_monitor::digest_database_data::SGACL Null Return", ret)
-                    o.update_failed = True
-                    o.last_update_state = "False"
-                    o.last_update_data = {"acl": str(o), "error": "SGACL Null Return"}
-                o.save()
-            except Exception as e:     # pragma: no cover
-                append_log(log, "ise_monitor::digest_database_data::SGACL Create Exception", e, traceback.format_exc())
-                o.update_failed = True
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_state = "False"
-                o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
-                o.save()
+    # acls = ACLData.objects.filter(Q(acl__do_sync=True) & Q(update_failed=False)).exclude(iseserver=None)
+    # for o in acls:
+    #     if o.source_id and o.update_dest() == "ise":
+    #         if o.acl.push_delete:
+    #             try:
+    #                 ret = ise.delete_sgacl(o.source_id)
+    #                 append_log(log, "ise_monitor::digest_database_data::SGACL delete", ret)
+    #                 o.delete()
+    #             except Exception as e:  # pragma: no cover
+    #                 append_log(log, "ise_monitor::digest_database_data::SGACL Delete Exception", e,
+    #                            traceback.format_exc())
+    #                 o.update_failed = True
+    #                 o.last_update = make_aware(datetime.datetime.now())
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
+    #                 o.save()
+    #         else:
+    #             try:
+    #                 ret = ise.update_sgacl(o.source_id, o.acl.cleaned_name(), o.acl.description, o.lookup_version(o),
+    #                                        o.lookup_rules(o).split("\n"), return_object=True)
+    #                 o.last_update = make_aware(datetime.datetime.now())
+    #                 o.last_update_data = ret
+    #                 o.last_update_state = str(ret.get("success", False))
+    #                 if ret["response"] and isinstance(ret["response"], dict):
+    #                     o.source_id = ret["response"]["id"]
+    #                     o.source_data = json.dumps(ret["response"])
+    #                     append_log(log, "ise_monitor::digest_database_data::Push SGACL update", o.source_id,
+    #                                o.acl.cleaned_name(), o.acl.description, ret)
+    #                 else:     # pragma: no cover
+    #                     append_log(log, "ise_monitor::digest_database_data::SGACL Invalid Return", ret)
+    #                     o.update_failed = True
+    #                     o.last_update_state = "False"
+    #                     o.last_update_data = {"acl": str(o), "error": "SGACL Invalid Return"}
+    #                 o.save()
+    #             except Exception as e:     # pragma: no cover
+    #                 append_log(log, "ise_monitor::digest_database_data::SGACL Update Exception", e,
+    #                            traceback.format_exc())
+    #                 o.update_failed = True
+    #                 o.last_update = make_aware(datetime.datetime.now())
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
+    #                 o.save()
+    #     elif o.update_dest() == "ise":
+    #         try:
+    #             ret = ise.add_sgacl(o.acl.cleaned_name(), o.acl.description, o.lookup_version(o),
+    #                                 o.lookup_rules(o).split("\n"), return_object=True)
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_data = ret
+    #             o.last_update_state = str(ret.get("success", False))
+    #             if ret["response"] and isinstance(ret["response"], dict):
+    #                 o.source_id = ret["response"]["id"]
+    #                 o.source_data = json.dumps(ret["response"])
+    #                 append_log(log, "ise_monitor::digest_database_data::Push SGACL create", o.acl.cleaned_name(),
+    #                            o.acl.description, ret)
+    #             else:     # pragma: no cover
+    #                 append_log(log, "ise_monitor::digest_database_data::SGACL Null Return", ret)
+    #                 o.update_failed = True
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"acl": str(o), "error": "SGACL Null Return"}
+    #             o.save()
+    #         except Exception as e:     # pragma: no cover
+    #             append_log(log, "ise_monitor::digest_database_data::SGACL Create Exception", e, traceback.format_exc())
+    #             o.update_failed = True
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_state = "False"
+    #             o.last_update_data = {"acl": str(o), "error": "Exception: " + str(e)}
+    #             o.save()
 
-    policies = PolicyData.objects.filter(Q(policy__do_sync=True) & Q(update_failed=False)).exclude(iseserver=None)
-    for o in policies:
-        if o.source_id and not o.policy.push_delete and o.update_dest() == "ise":
-            try:
-                srcsgt, dstsgt = o.lookup_sgt_data(o)
-                sgacl = o.lookup_sgacl_data(o)
-                acls = []
-                if sgacl:
-                    for s in sgacl:
-                        acls.append(s.source_id)
+    # policies = PolicyData.objects.filter(Q(policy__do_sync=True) & Q(update_failed=False)).exclude(iseserver=None)
+    # for o in policies:
+    #     if o.source_id and not o.policy.push_delete and o.update_dest() == "ise":
+    #         try:
+    #             srcsgt, dstsgt = o.lookup_sgt_data(o)
+    #             sgacl = o.lookup_sgacl_data(o)
+    #             acls = []
+    #             if sgacl:
+    #                 for s in sgacl:
+    #                     acls.append(s.source_id)
 
-                if not srcsgt or not dstsgt or sgacl is None:
-                    o.update_failed = False     # was True; disabled for now
-                    o.last_update = make_aware(datetime.datetime.now())
-                    o.last_update_state = "False"
-                    o.last_update_data = {"policy": str(o), "error": "ISE Update: Unable to locate sgt/sgacl data;" +
-                                                                     str(srcsgt) + ";" + str(dstsgt) + ";" + str(sgacl)}
-                    o.save()
-                    continue
+    #             if not srcsgt or not dstsgt or sgacl is None:
+    #                 o.update_failed = False     # was True; disabled for now
+    #                 o.last_update = make_aware(datetime.datetime.now())
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"policy": str(o), "error": "ISE Update: Unable to locate sgt/sgacl data;" +
+    #                                                                  str(srcsgt) + ";" + str(dstsgt) + ";" + str(sgacl)}
+    #                 o.save()
+    #                 continue
 
-                ret = ise.update_egressmatrixcell(o.source_id, srcsgt.source_id, dstsgt.source_id,
-                                                  o.lookup_acl_catchall(o),
-                                                  acls=acls, description=o.policy.description,
-                                                  return_object=True)
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_data = ret
-                o.last_update_state = str(ret.get("success", False))
-                if ret["response"] and isinstance(ret["response"], dict):
-                    o.source_id = ret["response"]["id"]
-                    o.source_data = json.dumps(ret["response"])
-                    append_log(log, "ise_monitor::digest_database_data::Push Policy update", o.source_id, o.policy.name,
-                               o.policy.description, ret)
-                else:     # pragma: no cover
-                    append_log(log, "ise_monitor::digest_database_data::Policy Null Return", ret)
-                    o.update_failed = True
-                    o.last_update_state = "False"
-                    o.last_update_data = {"policy": str(o), "error": "Policy Null Return"}
-                o.save()
-            except Exception as e:     # pragma: no cover
-                append_log(log, "ise_monitor::digest_database_data::Policy Update Exception", e,
-                           traceback.format_exc())
-                o.update_failed = True
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_state = "False"
-                o.last_update_data = {"policy": str(o), "error": "Exception: " + str(e)}
-                o.save()
-        elif o.update_dest() == "ise":
-            try:
-                srcsgt, dstsgt = o.lookup_sgt_data(o)
-                sgacl = o.lookup_sgacl_data(o)
-                acls = []
-                if sgacl:
-                    for s in sgacl:
-                        acls.append(s.source_id)
+    #             ret = ise.update_egressmatrixcell(o.source_id, srcsgt.source_id, dstsgt.source_id,
+    #                                               o.lookup_acl_catchall(o),
+    #                                               acls=acls, description=o.policy.description,
+    #                                               return_object=True)
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_data = ret
+    #             o.last_update_state = str(ret.get("success", False))
+    #             if ret["response"] and isinstance(ret["response"], dict):
+    #                 o.source_id = ret["response"]["id"]
+    #                 o.source_data = json.dumps(ret["response"])
+    #                 append_log(log, "ise_monitor::digest_database_data::Push Policy update", o.source_id, o.policy.name,
+    #                            o.policy.description, ret)
+    #             else:     # pragma: no cover
+    #                 append_log(log, "ise_monitor::digest_database_data::Policy Null Return", ret)
+    #                 o.update_failed = True
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"policy": str(o), "error": "Policy Null Return"}
+    #             o.save()
+    #         except Exception as e:     # pragma: no cover
+    #             append_log(log, "ise_monitor::digest_database_data::Policy Update Exception", e,
+    #                        traceback.format_exc())
+    #             o.update_failed = True
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_state = "False"
+    #             o.last_update_data = {"policy": str(o), "error": "Exception: " + str(e)}
+    #             o.save()
+    #     elif o.update_dest() == "ise":
+    #         try:
+    #             srcsgt, dstsgt = o.lookup_sgt_data(o)
+    #             sgacl = o.lookup_sgacl_data(o)
+    #             acls = []
+    #             if sgacl:
+    #                 for s in sgacl:
+    #                     acls.append(s.source_id)
 
-                if not srcsgt or not dstsgt or sgacl is None:
-                    o.update_failed = True
-                    o.last_update = make_aware(datetime.datetime.now())
-                    o.last_update_state = "False"
-                    o.last_update_data = {"policy": str(o), "error": "ISE Create: Unable to locate sgt/sgacl data;" +
-                                                                     str(srcsgt) + ";" + str(dstsgt) + ";" + str(sgacl)}
-                    o.save()
-                    continue
+    #             if not srcsgt or not dstsgt or sgacl is None:
+    #                 o.update_failed = True
+    #                 o.last_update = make_aware(datetime.datetime.now())
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"policy": str(o), "error": "ISE Create: Unable to locate sgt/sgacl data;" +
+    #                                                                  str(srcsgt) + ";" + str(dstsgt) + ";" + str(sgacl)}
+    #                 o.save()
+    #                 continue
 
-                ret = ise.add_egressmatrixcell(srcsgt.source_id, dstsgt.source_id, o.lookup_acl_catchall(o),
-                                               acls=acls, description=o.policy.description,
-                                               return_object=True)
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_data = ret
-                o.last_update_state = str(ret.get("success", False))
-                if ret["response"] and isinstance(ret["response"], dict):
-                    o.source_id = ret["response"]["id"]
-                    o.source_data = json.dumps(ret["response"])
-                    append_log(log, "ise_monitor::digest_database_data::Push Policy create", o.policy.name,
-                               o.policy.description, ret)
-                else:     # pragma: no cover
-                    append_log(log, "ise_monitor::digest_database_data::Policy Null Return", ret)
-                    o.update_failed = True
-                    o.last_update_state = "False"
-                    o.last_update_data = {"policy": str(o), "error": "Policy Null Return"}
-                o.save()
-            except Exception as e:     # pragma: no cover
-                append_log(log, "ise_monitor::digest_database_data::Policy Create Exception", e, traceback.format_exc())
-                o.update_failed = True
-                o.last_update = make_aware(datetime.datetime.now())
-                o.last_update_state = "False"
-                o.last_update_data = {"policy": str(o), "error": "Exception: " + str(e)}
-                o.save()
+    #             ret = ise.add_egressmatrixcell(srcsgt.source_id, dstsgt.source_id, o.lookup_acl_catchall(o),
+    #                                            acls=acls, description=o.policy.description,
+    #                                            return_object=True)
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_data = ret
+    #             o.last_update_state = str(ret.get("success", False))
+    #             if ret["response"] and isinstance(ret["response"], dict):
+    #                 o.source_id = ret["response"]["id"]
+    #                 o.source_data = json.dumps(ret["response"])
+    #                 append_log(log, "ise_monitor::digest_database_data::Push Policy create", o.policy.name,
+    #                            o.policy.description, ret)
+    #             else:     # pragma: no cover
+    #                 append_log(log, "ise_monitor::digest_database_data::Policy Null Return", ret)
+    #                 o.update_failed = True
+    #                 o.last_update_state = "False"
+    #                 o.last_update_data = {"policy": str(o), "error": "Policy Null Return"}
+    #             o.save()
+    #         except Exception as e:     # pragma: no cover
+    #             append_log(log, "ise_monitor::digest_database_data::Policy Create Exception", e, traceback.format_exc())
+    #             o.update_failed = True
+    #             o.last_update = make_aware(datetime.datetime.now())
+    #             o.last_update_state = "False"
+    #             o.last_update_data = {"policy": str(o), "error": "Exception: " + str(e)}
+    #             o.save()
 
 
 def sync_ise():
@@ -310,10 +325,11 @@ def sync_ise():
     sss = SyncSession.objects.all()
     for ss in sss:
         digest_database_data(ss, log)
-        ss.iseserver.force_rebuild = True
-        ss.iseserver.skip_update = True
-        ss.iseserver.save()
-        ss.save()
+        if ss and ss.iseserver:
+            ss.iseserver.force_rebuild = True
+            ss.iseserver.skip_update = True
+            ss.iseserver.save()
+            ss.save()
         msg = "SYNC_ISE-CHANGES_MADE_FORCE_UPDATE"
 
     # Ensure that Meraki Dashboard has already completed a sync if it is the source of truth
@@ -342,24 +358,24 @@ def sync_ise():
                                              Q(iseserver__last_sync__lte=ctime))
             for d in dbs:
                 # Log the reason(s) for the current sync
-                if d.force_rebuild:     # pragma: no cover
-                    append_log(log, "ise_monitor::sync_ise::Sync Session Force Rebuild", d)
-                    msg = "SYNC_ISE-SYNCSESSION_FORCE_REBUILD"
-                    d.force_rebuild = False
-                    d.save()
-                if d.iseserver.force_rebuild:
-                    append_log(log, "ise_monitor::sync_ise::Dashboard Force Rebuild", d)
-                    msg = "SYNC_ISE-ISE_FORCE_REBUILD"
-                    d.iseserver.force_rebuild = False
-                    d.iseserver.skip_update = True
-                    d.iseserver.save()
-                if d.iseserver.last_sync and (d.iseserver.last_sync != d.iseserver.last_update):
-                    append_log(log, "ise_monitor::sync_ise::Database Config / Sync Timestamp Mismatch", d)
-                    msg = "SYNC_ISE-CONFIG_SYNC_TIMESTAMP_MISMATCH"
-                if d.iseserver.last_sync and (d.iseserver.last_sync <= ctime):
-                    append_log(log, "ise_monitor::sync_ise::Past Manual Sync Interval", d)
-                    msg = "SYNC_ISE-PAST_SYNC_INTERVAL"
-
+                # if d.force_rebuild:     # pragma: no cover
+                #     append_log(log, "ise_monitor::sync_ise::Sync Session Force Rebuild", d)
+                #     msg = "SYNC_ISE-SYNCSESSION_FORCE_REBUILD"
+                #     d.force_rebuild = False
+                #     d.save()
+                # if d.iseserver.force_rebuild:
+                #     append_log(log, "ise_monitor::sync_ise::Dashboard Force Rebuild", d)
+                #     msg = "SYNC_ISE-ISE_FORCE_REBUILD"
+                #     d.iseserver.force_rebuild = False
+                #     d.iseserver.skip_update = True
+                #     d.iseserver.save()
+                # if d.iseserver.last_sync and (d.iseserver.last_sync != d.iseserver.last_update):
+                #     append_log(log, "ise_monitor::sync_ise::Database Config / Sync Timestamp Mismatch", d)
+                #     msg = "SYNC_ISE-CONFIG_SYNC_TIMESTAMP_MISMATCH"
+                # if d.iseserver.last_sync and (d.iseserver.last_sync <= ctime):
+                #     append_log(log, "ise_monitor::sync_ise::Past Manual Sync Interval", d)
+                #     msg = "SYNC_ISE-PAST_SYNC_INTERVAL"
+                
                 ingest_ise_data(dbs, log)
 
     # After ingesting data, more updates may be required (Should these have been caught elsewhere?)

@@ -80,6 +80,7 @@ urlpatterns = [
     re_path(r'^home/upload-cert$', apsyncviews.certupload, name='certupload'),
     re_path(r'^home/config-cert$', apsyncviews.certconfig, name='certconfig'),
     re_path(r'^home/config-ise$', apsyncviews.iseconfig, name='iseconfig'),
+    re_path(r'^home/config-ise-pxgrid-cloud$', apsyncviews.isepxgridcloudconfig, name='isepxgridcloudconfig'),
     re_path(r'^home/config-meraki$', apsyncviews.merakiconfig, name='merakiconfig'),
     re_path(r'^home/config-sync$', apsyncviews.syncconfig, name='syncconfig'),
     re_path(r'^home/backup-restore$', apsyncviews.backuprestore, name='backuprestore'),

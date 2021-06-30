@@ -20,8 +20,8 @@ class InvalidMacAddress(Exception):
 
 
 class ERS(object):
-    def __init__(self, ise_node, ers_user, ers_pass, verify=False, disable_warnings=False, use_csrf=False, timeout=2,
-                 protocol='https'):
+    def __init__(self, ise_node=None, ers_user=None, ers_pass=None, verify=False, disable_warnings=False, use_csrf=False, 
+                    device_id = None, timeout=2, protocol='https'):
         """
         Class to interact with Cisco ISE via the ERS API.
 
@@ -47,6 +47,7 @@ class ERS(object):
         self.csrf = None
         self.csrf_expires = None
         self.timeout = timeout
+        self.device_id = device_id
         self.ise.headers.update({'Connection': 'keep_alive'})
 
         if self.disable_warnings:
@@ -689,289 +690,289 @@ class ERS(object):
         else:
             return ERS._pass_ersresponse(result, resp)
 
-    def get_egressmatrixcells(self, detail=False, size=20, page=1, filter=None):
-        """
-        Get all TrustSec Egress Matrix Cells.
+    # def get_egressmatrixcells(self, detail=False, size=20, page=1, filter=None):
+    #     """
+    #     Get all TrustSec Egress Matrix Cells.
 
-        :param detail: recursively retrieve all data for all egress cells in list (rather than just summary data)
-        :return: result dictionary
-        """
+    #     :param detail: recursively retrieve all data for all egress cells in list (rather than just summary data)
+    #     :return: result dictionary
+    #     """
 
-        if detail:
-            out_objs = []
-            objs = self._get_objects('{0}/config/egressmatrixcell'.format(self.url_base), filter=filter, size=size,
-                                     page=page)
-            for o in objs["response"]:
-                if len(o) > 1:
-                    emc = self.get_object('{0}/config/egressmatrixcell'.format(self.url_base), o[1], 'EgressMatrixCell')
-                    out_objs.append(emc["response"])
-            return {"success": objs["success"], "response": out_objs, "error": objs["error"]}
-        else:
-            return self._get_objects('{0}/config/egressmatrixcell'.format(self.url_base), filter=filter, size=size,
-                                     page=page)
+    #     if detail:
+    #         out_objs = []
+    #         objs = self._get_objects('{0}/config/egressmatrixcell'.format(self.url_base), filter=filter, size=size,
+    #                                  page=page)
+    #         for o in objs["response"]:
+    #             if len(o) > 1:
+    #                 emc = self.get_object('{0}/config/egressmatrixcell'.format(self.url_base), o[1], 'EgressMatrixCell')
+    #                 out_objs.append(emc["response"])
+    #         return {"success": objs["success"], "response": out_objs, "error": objs["error"]}
+    #     else:
+    #         return self._get_objects('{0}/config/egressmatrixcell'.format(self.url_base), filter=filter, size=size,
+    #                                  page=page)
 
-    def get_egressmatrixcell(self, emc, src_sgt=None, dst_sgt=None):
-        """
-        Get TrustSec Egress Matrix Cell Policy details.
+    # def get_egressmatrixcell(self, emc, src_sgt=None, dst_sgt=None):
+    #     """
+    #     Get TrustSec Egress Matrix Cell Policy details.
 
-        :param emc: name or Object ID of the TrustSec Egress Matrix Cell Policy
-        :param src_sgt: name or Object ID of the Source SGT in the Policy
-        :param src_sgt: name or Object ID of the Dest SGT in the Policy
-        :return: result dictionary
-        """
-        self.ise.headers.update(
-            {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
+    #     :param emc: name or Object ID of the TrustSec Egress Matrix Cell Policy
+    #     :param src_sgt: name or Object ID of the Source SGT in the Policy
+    #     :param src_sgt: name or Object ID of the Dest SGT in the Policy
+    #     :return: result dictionary
+    #     """
+    #     self.ise.headers.update(
+    #         {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
 
-        result = {
-            'success': False,
-            'response': '',
-            'error': '',
-        }
+    #     result = {
+    #         'success': False,
+    #         'response': '',
+    #         'error': '',
+    #     }
 
-        # If it's a valid OID, perform a more direct GET-call
-        if self._oid_test(emc):
-            result = self.get_object(
-                '{0}/config/egressmatrixcell'.format(self.url_base),
-                emc,
-                'EgressMatrixCell'
-            )
-            return result
-        # If not valid OID, perform regular search
-        else:
-            if emc:
-                resp = self.ise.get(
-                    '{0}/config/egressmatrixcell?filter=description.EQ.{1}'.format(
-                        self.url_base, emc))
-                found_group = resp.json()
-            elif src_sgt and dst_sgt:
-                srcsgtval = self.get_sgt(src_sgt)["response"]["value"]
-                dstsgtval = self.get_sgt(dst_sgt)["response"]["value"]
-                resp = self.ise.get(
-                    '{0}/config/egressmatrixcell?filter=sgtSrcValue.EQ.{1}&filter=sgtDstValue.EQ.{2}'.format(
-                        self.url_base, srcsgtval, dstsgtval))
-                found_group = resp.json()
-            else:
-                return result
+    #     # If it's a valid OID, perform a more direct GET-call
+    #     if self._oid_test(emc):
+    #         result = self.get_object(
+    #             '{0}/config/egressmatrixcell'.format(self.url_base),
+    #             emc,
+    #             'EgressMatrixCell'
+    #         )
+    #         return result
+    #     # If not valid OID, perform regular search
+    #     else:
+    #         if emc:
+    #             resp = self.ise.get(
+    #                 '{0}/config/egressmatrixcell?filter=description.EQ.{1}'.format(
+    #                     self.url_base, emc))
+    #             found_group = resp.json()
+    #         elif src_sgt and dst_sgt:
+    #             srcsgtval = self.get_sgt(src_sgt)["response"]["value"]
+    #             dstsgtval = self.get_sgt(dst_sgt)["response"]["value"]
+    #             resp = self.ise.get(
+    #                 '{0}/config/egressmatrixcell?filter=sgtSrcValue.EQ.{1}&filter=sgtDstValue.EQ.{2}'.format(
+    #                     self.url_base, srcsgtval, dstsgtval))
+    #             found_group = resp.json()
+    #         else:
+    #             return result
 
-        if found_group['SearchResult']['total'] == 1:
-            result = self.get_object('{0}/config/egressmatrixcell'.format(self.url_base),
-                                     found_group['SearchResult']['resources'][0]['id'], "EgressMatrixCell")
+    #     if found_group['SearchResult']['total'] == 1:
+    #         result = self.get_object('{0}/config/egressmatrixcell'.format(self.url_base),
+    #                                  found_group['SearchResult']['resources'][0]['id'], "EgressMatrixCell")
 
-            return result
-        else:
-            return ERS._pass_ersresponse(result, resp)
+    #         return result
+    #     else:
+    #         return ERS._pass_ersresponse(result, resp)
 
-    def add_egressmatrixcell(self,
-                             source_sgt,
-                             destination_sgt,
-                             default_rule,
-                             acls=None,
-                             description=None,
-                             return_object=False):
-        """
-        Add TrustSec Egress Matrix Cell Policy.
+    # def add_egressmatrixcell(self,
+    #                          source_sgt,
+    #                          destination_sgt,
+    #                          default_rule,
+    #                          acls=None,
+    #                          description=None,
+    #                          return_object=False):
+    #     """
+    #     Add TrustSec Egress Matrix Cell Policy.
 
-        :param description: Description
-        :param source_sgt: Source SGT name or Object ID
-        :param destination_sgt: Destination SGT name or Object ID
-        :param default_rule: "NONE", "PERMIT_IP", "DENY_IP"
-        :param acls: list of SGACL Object IDs. Can be None.
-        :param return_object: Look up object after creation and return in response
-        """
+    #     :param description: Description
+    #     :param source_sgt: Source SGT name or Object ID
+    #     :param destination_sgt: Destination SGT name or Object ID
+    #     :param default_rule: "NONE", "PERMIT_IP", "DENY_IP"
+    #     :param acls: list of SGACL Object IDs. Can be None.
+    #     :param return_object: Look up object after creation and return in response
+    #     """
 
-        # ISE will actually allow you to post duplicate polices, so before we execute the post, double check to
-        # make sure a policy doesn't already exist
-        src_sgt_r = self.get_sgt(source_sgt)["response"]
-        dst_sgt_r = self.get_sgt(destination_sgt)["response"]
-        if src_sgt_r and dst_sgt_r:
-            src_sgt = src_sgt_r.get("id", None)
-            dst_sgt = dst_sgt_r.get("id", None)
-            celldata = self.get_egressmatrixcell(None, src_sgt=src_sgt, dst_sgt=dst_sgt)["response"]
-        else:
-            celldata = src_sgt = dst_sgt = None
+    #     # ISE will actually allow you to post duplicate polices, so before we execute the post, double check to
+    #     # make sure a policy doesn't already exist
+    #     src_sgt_r = self.get_sgt(source_sgt)["response"]
+    #     dst_sgt_r = self.get_sgt(destination_sgt)["response"]
+    #     if src_sgt_r and dst_sgt_r:
+    #         src_sgt = src_sgt_r.get("id", None)
+    #         dst_sgt = dst_sgt_r.get("id", None)
+    #         celldata = self.get_egressmatrixcell(None, src_sgt=src_sgt, dst_sgt=dst_sgt)["response"]
+    #     else:
+    #         celldata = src_sgt = dst_sgt = None
 
-        if celldata:
-            result = {
-                'success': False,
-                'response': '',
-                'error': 'There is already a policy present for this source and destination. Please use update to make '
-                         'policy changes.'
-            }
-            return result
-        elif default_rule == "NONE" and acls is None:
-            result = {
-                'success': False,
-                'response': '',
-                'error': 'You must specify one or more acls as a list, or a default_rule; both cannot be blank'
-            }
-            return result
-        else:
-            self.ise.headers.update(
-                {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
+    #     if celldata:
+    #         result = {
+    #             'success': False,
+    #             'response': '',
+    #             'error': 'There is already a policy present for this source and destination. Please use update to make '
+    #                      'policy changes.'
+    #         }
+    #         return result
+    #     elif default_rule == "NONE" and acls is None:
+    #         result = {
+    #             'success': False,
+    #             'response': '',
+    #             'error': 'You must specify one or more acls as a list, or a default_rule; both cannot be blank'
+    #         }
+    #         return result
+    #     else:
+    #         self.ise.headers.update(
+    #             {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
 
-            result = {
-                'success': False,
-                'response': '',
-                'error': '',
-            }
+    #         result = {
+    #             'success': False,
+    #             'response': '',
+    #             'error': '',
+    #         }
 
-            newacls = []
-            if acls:
-                for a in acls:
-                    if self._oid_test(a):
-                        newacls.append(a)
-                    else:
-                        newacl = self.get_sgacl(a)["response"].get("id", None)
-                        if newacl:
-                            newacls.append(newacl)
+    #         newacls = []
+    #         if acls:
+    #             for a in acls:
+    #                 if self._oid_test(a):
+    #                     newacls.append(a)
+    #                 else:
+    #                     newacl = self.get_sgacl(a)["response"].get("id", None)
+    #                     if newacl:
+    #                         newacls.append(newacl)
 
-            data = {"EgressMatrixCell": {'description': description,
-                                         'sourceSgtId': src_sgt,
-                                         'destinationSgtId': dst_sgt,
-                                         'defaultRule': default_rule, "matrixCellStatus": "ENABLED",
-                                         'sgacls': newacls}}
-            resp = self._request('{0}/config/egressmatrixcell'.format(self.url_base), method='post',
-                                 data=json.dumps(data))
-            if resp.status_code == 201:
-                result['success'] = True
-                if return_object:
-                    result['response'] = self.get_egressmatrixcell(None, src_sgt=src_sgt, dst_sgt=dst_sgt)["response"]
-                else:
-                    result['response'] = '{0} Added Successfully'.format(description)
-                return result
-            else:
-                return ERS._pass_ersresponse(result, resp)
+    #         data = {"EgressMatrixCell": {'description': description,
+    #                                      'sourceSgtId': src_sgt,
+    #                                      'destinationSgtId': dst_sgt,
+    #                                      'defaultRule': default_rule, "matrixCellStatus": "ENABLED",
+    #                                      'sgacls': newacls}}
+    #         resp = self._request('{0}/config/egressmatrixcell'.format(self.url_base), method='post',
+    #                              data=json.dumps(data))
+    #         if resp.status_code == 201:
+    #             result['success'] = True
+    #             if return_object:
+    #                 result['response'] = self.get_egressmatrixcell(None, src_sgt=src_sgt, dst_sgt=dst_sgt)["response"]
+    #             else:
+    #                 result['response'] = '{0} Added Successfully'.format(description)
+    #             return result
+    #         else:
+    #             return ERS._pass_ersresponse(result, resp)
 
-    def update_egressmatrixcell(self,
-                                emc,
-                                source_sgt,
-                                destination_sgt,
-                                default_rule,
-                                acls=None,
-                                description=None,
-                                return_object=False):
-        """
-        Update TrustSec Egress Matrix Cell Policy.
+    # def update_egressmatrixcell(self,
+    #                             emc,
+    #                             source_sgt,
+    #                             destination_sgt,
+    #                             default_rule,
+    #                             acls=None,
+    #                             description=None,
+    #                             return_object=False):
+    #     """
+    #     Update TrustSec Egress Matrix Cell Policy.
 
-        :param emc: Object ID of egress matrix cell
-        :param description: Description
-        :param source_sgt: Source SGT name or Object ID
-        :param destination_sgt: Destination SGT name or Object ID
-        :param default_rule: "NONE", "PERMIT_IP", "DENY_IP"
-        :param acls: list of SGACL Object IDs. Can be None.
-        :param return_object: Look up object after creation and return in response
-        """
-        if not emc:
-            result = {
-                'success': False,
-                'response': '',
-                'error': 'You must provide the egress matrix cell object id in order to update it.'
-            }
-            return result
-        else:
-            self.ise.headers.update(
-                {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
+    #     :param emc: Object ID of egress matrix cell
+    #     :param description: Description
+    #     :param source_sgt: Source SGT name or Object ID
+    #     :param destination_sgt: Destination SGT name or Object ID
+    #     :param default_rule: "NONE", "PERMIT_IP", "DENY_IP"
+    #     :param acls: list of SGACL Object IDs. Can be None.
+    #     :param return_object: Look up object after creation and return in response
+    #     """
+    #     if not emc:
+    #         result = {
+    #             'success': False,
+    #             'response': '',
+    #             'error': 'You must provide the egress matrix cell object id in order to update it.'
+    #         }
+    #         return result
+    #     else:
+    #         self.ise.headers.update(
+    #             {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
 
-            result = {
-                'success': False,
-                'response': '',
-                'error': '',
-            }
+    #         result = {
+    #             'success': False,
+    #             'response': '',
+    #             'error': '',
+    #         }
 
-            newacls = []
-            if acls:
-                for a in acls:
-                    if self._oid_test(a):
-                        newacls.append(a)
-                    else:
-                        newacl = self.get_sgacl(a)["response"].get("id", None)
-                        if newacl:
-                            newacls.append(newacl)
+    #         newacls = []
+    #         if acls:
+    #             for a in acls:
+    #                 if self._oid_test(a):
+    #                     newacls.append(a)
+    #                 else:
+    #                     newacl = self.get_sgacl(a)["response"].get("id", None)
+    #                     if newacl:
+    #                         newacls.append(newacl)
 
-            src_sgt = self.get_sgt(source_sgt)["response"]
-            dst_sgt = self.get_sgt(destination_sgt)["response"]
-            if src_sgt and dst_sgt:
-                data = {"EgressMatrixCell": {'id': emc, 'description': description,
-                                             'sourceSgtId': src_sgt["id"],
-                                             'destinationSgtId': dst_sgt["id"],
-                                             'defaultRule': default_rule, "matrixCellStatus": "ENABLED",
-                                             'sgacls': newacls}}
+    #         src_sgt = self.get_sgt(source_sgt)["response"]
+    #         dst_sgt = self.get_sgt(destination_sgt)["response"]
+    #         if src_sgt and dst_sgt:
+    #             data = {"EgressMatrixCell": {'id': emc, 'description': description,
+    #                                          'sourceSgtId': src_sgt["id"],
+    #                                          'destinationSgtId': dst_sgt["id"],
+    #                                          'defaultRule': default_rule, "matrixCellStatus": "ENABLED",
+    #                                          'sgacls': newacls}}
 
-                resp = self._request(('{0}/config/egressmatrixcell/' + emc).format(self.url_base), method='put',
-                                     data=json.dumps(data))
-                if resp.status_code == 200:
-                    result['success'] = True
-                    if return_object:
-                        result['response'] = self.get_egressmatrixcell(emc)["response"]
-                    else:
-                        result['response'] = resp.json()
-                    return result
-                else:
-                    return ERS._pass_ersresponse(result, resp)
-            else:
-                return {
-                    'success': False,
-                    'response': None,
-                    'error': '',
-                }
+    #             resp = self._request(('{0}/config/egressmatrixcell/' + emc).format(self.url_base), method='put',
+    #                                  data=json.dumps(data))
+    #             if resp.status_code == 200:
+    #                 result['success'] = True
+    #                 if return_object:
+    #                     result['response'] = self.get_egressmatrixcell(emc)["response"]
+    #                 else:
+    #                     result['response'] = resp.json()
+    #                 return result
+    #             else:
+    #                 return ERS._pass_ersresponse(result, resp)
+    #         else:
+    #             return {
+    #                 'success': False,
+    #                 'response': None,
+    #                 'error': '',
+    #             }
 
-    def delete_egressmatrixcell(self, emc):
-        """
-        Delete TrustSec Egress Matrix Cell Policy.
+    # def delete_egressmatrixcell(self, emc):
+    #     """
+    #     Delete TrustSec Egress Matrix Cell Policy.
 
-        :param emc: Object ID of egress matrix cell policy
-        :return: Result dictionary
-        """
-        self.ise.headers.update(
-            {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
+    #     :param emc: Object ID of egress matrix cell policy
+    #     :return: Result dictionary
+    #     """
+    #     self.ise.headers.update(
+    #         {'ACCEPT': 'application/json', 'Content-Type': 'application/json'})
 
-        result = {
-            'success': False,
-            'response': '',
-            'error': '',
-        }
+    #     result = {
+    #         'success': False,
+    #         'response': '',
+    #         'error': '',
+    #     }
 
-        resp = self._request('{0}/config/egressmatrixcell/{1}'.format(self.url_base, emc), method='delete')
+    #     resp = self._request('{0}/config/egressmatrixcell/{1}'.format(self.url_base, emc), method='delete')
 
-        if resp.status_code == 204:
-            result['success'] = True
-            result['response'] = '{0} Deleted Successfully'.format(emc)
-            return result
-        elif resp.status_code == 404:
-            result['response'] = '{0} not found'.format(emc)
-            result['error'] = resp.status_code
-            return result
-        else:
-            return ERS._pass_ersresponse(result, resp)
+    #     if resp.status_code == 204:
+    #         result['success'] = True
+    #         result['response'] = '{0} Deleted Successfully'.format(emc)
+    #         return result
+    #     elif resp.status_code == 404:
+    #         result['response'] = '{0} not found'.format(emc)
+    #         result['error'] = resp.status_code
+    #         return result
+    #     else:
+    #         return ERS._pass_ersresponse(result, resp)
 
-    def get_object(self, url: str, objectid: str, objecttype: str):
-        """
-        Get generic object lists.
+    # def get_object(self, url: str, objectid: str, objecttype: str):
+    #     """
+    #     Get generic object lists.
 
-        :param url: Base URL for requesting lists
-        :param objectid: ID retreved from previous search.
-        :param objecttype: "ERSEndPoint", etc...
-        :return: result dictionary
-        """
-        result = {
-            'success': False,
-            'response': '',
-            'error': '',
-        }
+    #     :param url: Base URL for requesting lists
+    #     :param objectid: ID retreved from previous search.
+    #     :param objecttype: "ERSEndPoint", etc...
+    #     :return: result dictionary
+    #     """
+    #     result = {
+    #         'success': False,
+    #         'response': '',
+    #         'error': '',
+    #     }
 
-        self.ise.headers.update(
-            {'Accept': 'application/json', 'Content-Type': 'application/json'})
+    #     self.ise.headers.update(
+    #         {'Accept': 'application/json', 'Content-Type': 'application/json'})
 
-        f = furl(url)
-        f.path /= objectid
-        resp = self.ise.get(f.url)
+    #     f = furl(url)
+    #     f.path /= objectid
+    #     resp = self.ise.get(f.url)
 
-        if resp.status_code == 200:
-            result['success'] = True
-            result['response'] = resp.json()[objecttype]
-            return result
-        else:
-            return ERS._pass_ersresponse(result, resp)
+    #     if resp.status_code == 200:
+    #         result['success'] = True
+    #         result['response'] = resp.json()[objecttype]
+    #         return result
+    #     else:
+    #         return ERS._pass_ersresponse(result, resp)
 
     def get_endpoint(self, mac_address):
         """
@@ -1478,7 +1479,7 @@ class ERS(object):
         return tenant_access_token
 
     def get_regional_cluster(self):
-        device_id = "60cb4d72fb92257d96f2ad74"
+        device_id = self.device_id
         cloud_access_token = self.get_tenant_admin_token()
         req_session = requests.Session()
         req_session.verify = False
@@ -1517,7 +1518,7 @@ class ERS(object):
         for o in objs["SearchResult"]["resources"]:
             if len(o) > 1:
                 url_ers_sgt_by_id = url_ers_sgts + "/" + o["id"]
-                print("### url_ers_sgt_by_id: " + url_ers_sgt_by_id)
+                # print("### url_ers_sgt_by_id: " + url_ers_sgt_by_id)
                 sgt = req_session.get(url_ers_sgt_by_id, headers=headers)
                 sgt_by_id_json = sgt.json()
                 # print(sgt_by_id_json)

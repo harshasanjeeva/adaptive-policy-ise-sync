@@ -117,7 +117,7 @@ def reset_ise(db=None, iseip=None, iseuser=None, isepass=None):
 
     sgts = ise.get_sgts(detail=True)
     sgacls = ise.get_sgacls(detail=True)
-    sgpolicies = ise.get_egressmatrixcells(detail=True)
+    # sgpolicies = ise.get_egressmatrixcells(detail=True)
 
     if not sgts or "response" not in sgts:
         time.sleep(5)
@@ -130,13 +130,13 @@ def reset_ise(db=None, iseip=None, iseuser=None, isepass=None):
             print("Removing SGT", s["value"], "from Cisco ISE...")
             ise.delete_sgt(s["id"])
 
-    if not sgpolicies or "response" not in sgpolicies:
-        time.sleep(5)
-        sgpolicies = ise.get_egressmatrixcells(detail=True)
-    for s in sgpolicies["response"]:
-        if not s["name"] in sync._config.whitelisted_policies:
-            print("Removing Egress Policy", s["name"], "from Cisco ISE...")
-            ise.delete_egressmatrixcell(s["id"])
+    # if not sgpolicies or "response" not in sgpolicies:
+    #     time.sleep(5)
+    #     sgpolicies = ise.get_egressmatrixcells(detail=True)
+    # for s in sgpolicies["response"]:
+    #     if not s["name"] in sync._config.whitelisted_policies:
+    #         print("Removing Egress Policy", s["name"], "from Cisco ISE...")
+    #         ise.delete_egressmatrixcell(s["id"])
 
     if not sgacls or "response" not in sgacls:
         time.sleep(5)
@@ -148,7 +148,7 @@ def reset_ise(db=None, iseip=None, iseuser=None, isepass=None):
 
     sgts = ise.get_sgts(detail=True)
     sgacls = ise.get_sgacls(detail=True)
-    sgpolicies = ise.get_egressmatrixcells(detail=True)
+    # sgpolicies = ise.get_egressmatrixcells(detail=True)
 
     current_vals = [d['value'] for d in sgts["response"]]
     for s in sync._config.ise_default_sgts:
@@ -162,11 +162,11 @@ def reset_ise(db=None, iseip=None, iseuser=None, isepass=None):
             print("Adding SGACL", s["name"], "to Cisco ISE...")
             ise.add_sgacl(s["name"], s["description"], s["version"], s["aclcontent"])
 
-    current_vals = [d['name'] for d in sgpolicies["response"]]
-    for s in sync._config.ise_default_policies:
-        if not s["name"] in current_vals:
-            print("Adding Egress Policy", s["name"], "to Cisco ISE...")
-            ise.add_egressmatrixcell(s["src"], s["dst"], s["default"], acls=s["acls"], description=s["description"])
+    # current_vals = [d['name'] for d in sgpolicies["response"]]
+    # for s in sync._config.ise_default_policies:
+    #     if not s["name"] in current_vals:
+    #         print("Adding Egress Policy", s["name"], "to Cisco ISE...")
+    #         ise.add_egressmatrixcell(s["src"], s["dst"], s["default"], acls=s["acls"], description=s["description"])
 
 
 # @pytest.fixture(scope='session')

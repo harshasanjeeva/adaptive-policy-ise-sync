@@ -250,136 +250,138 @@ def process_sgacl_update(msg, sa):
 
 @sync_to_async
 def process_emc_update(msg, sa):
-    # ISE sends an update to /topic/com.cisco.ise.config.trustsec.security.group when Policy Group Matrices are updated
-    # {"operation": "UPDATE", "securityGroup": {"id": "34714b20-7a6f-11ea-a6b9-26b516ce162b", "name": "new_test_tag",
-    # "description": "tttt", "tag": 867, "isReadOnly": false, "isServiceProvider": false, "defaultSgaclIds": []}}
-    changed_tag = msg.get("securityGroup", {}).get("tag")
-    ise = ERS(ise_node=sa.iseserver.ipaddress, ers_user=sa.iseserver.username, ers_pass=sa.iseserver.password,
-              verify=False, disable_warnings=True)
-    emcs = ise.get_egressmatrixcells(detail=True, filter="sgtDstValue.EQ." + str(changed_tag))
-    for iseemc in emcs["response"]:
-        changed_id = iseemc.get("id")
-        changed_name = iseemc.get("name")
-        p_src = TagData.objects.filter(source_id=iseemc["sourceSgtId"]). \
-            filter(iseserver=sa.iseserver)
-        p_dst = TagData.objects.filter(source_id=iseemc["destinationSgtId"]). \
-            filter(iseserver=sa.iseserver)
-        src_grp = p_src[0] if len(p_src) > 0 else None
-        dst_grp = p_dst[0] if len(p_dst) > 0 else None
-        if src_grp and dst_grp:
-            if src_grp.tag.tag_number == 65535 and dst_grp.tag.tag_number == 65535:
-                continue
+    pass
+#     # ISE sends an update to /topic/com.cisco.ise.config.trustsec.security.group when Policy Group Matrices are updated
+#     # {"operation": "UPDATE", "securityGroup": {"id": "34714b20-7a6f-11ea-a6b9-26b516ce162b", "name": "new_test_tag",
+#     # "description": "tttt", "tag": 867, "isReadOnly": false, "isServiceProvider": false, "defaultSgaclIds": []}}
+#     changed_tag = msg.get("securityGroup", {}).get("tag")
+#     ise = ERS(ise_node=sa.iseserver.ipaddress, ers_user=sa.iseserver.username, ers_pass=sa.iseserver.password,
+#               verify=False, disable_warnings=True)
+#     emcs = ise.get_egressmatrixcells(detail=True, filter="sgtDstValue.EQ." + str(changed_tag))
+#     for iseemc in emcs["response"]:
+#         changed_id = iseemc.get("id")
+#         changed_name = iseemc.get("name")
+#         p_src = TagData.objects.filter(source_id=iseemc["sourceSgtId"]). \
+#             filter(iseserver=sa.iseserver)
+#         p_dst = TagData.objects.filter(source_id=iseemc["destinationSgtId"]). \
+#             filter(iseserver=sa.iseserver)
+#         src_grp = p_src[0] if len(p_src) > 0 else None
+#         dst_grp = p_dst[0] if len(p_dst) > 0 else None
+#         if src_grp and dst_grp:
+#             if src_grp.tag.tag_number == 65535 and dst_grp.tag.tag_number == 65535:
+#                 continue
 
-            binding_name = str(src_grp.tag.tag_number) + "-" + str(dst_grp.tag.tag_number)
-            binding_id = "s" + str(src_grp.source_id) + "-d" + str(dst_grp.source_id)
-            binding_desc = str(src_grp.tag.name) + "-" + str(dst_grp.tag.name)
-            policy_name = iseemc.get("name", "")
-            policy_desc = iseemc.get("description", "")
+#             binding_name = str(src_grp.tag.tag_number) + "-" + str(dst_grp.tag.tag_number)
+#             binding_id = "s" + str(src_grp.source_id) + "-d" + str(dst_grp.source_id)
+#             binding_desc = str(src_grp.tag.name) + "-" + str(dst_grp.tag.name)
+#             policy_name = iseemc.get("name", "")
+#             policy_desc = iseemc.get("description", "")
 
-            policy_name = binding_name if (policy_name is None or policy_name == "") else policy_name
-            policy_desc = binding_desc if (policy_desc is None or policy_desc == "") else policy_desc
-        else:
-            continue
+#             policy_name = binding_name if (policy_name is None or policy_name == "") else policy_name
+#             policy_desc = binding_desc if (policy_desc is None or policy_desc == "") else policy_desc
+#         else:
+#             continue
 
-        changed_td = PolicyData.objects.filter(source_id=changed_id)
-        if len(changed_td) == 1:
-            # Not a new policy, let's grab it
-            created = False
-            policy = changed_td[0].policy
-        else:
-            # In case tag is brand new and hasn't hit the database yet, we may need to create it...
-            policy, created = Policy.objects.get_or_create(name=changed_name,
-                                                           defaults={"name": policy_name,
-                                                                     "description": policy_desc,
-                                                                     "origin_ise": sa.iseserver,
-                                                                     "syncsession": sa})
+#         changed_td = PolicyData.objects.filter(source_id=changed_id)
+#         if len(changed_td) == 1:
+#             # Not a new policy, let's grab it
+#             created = False
+#             policy = changed_td[0].policy
+#         else:
+#             # In case tag is brand new and hasn't hit the database yet, we may need to create it...
+#             policy, created = Policy.objects.get_or_create(name=changed_name,
+#                                                            defaults={"name": policy_name,
+#                                                                      "description": policy_desc,
+#                                                                      "origin_ise": sa.iseserver,
+#                                                                      "syncsession": sa})
 
-        full_update = False
-        # We didn't create it, so we will update as long as ISE is the source (and we will also update if we created)
-        if (not created and sa.ise_source) or created:
-            full_update = True
+#         full_update = False
+#         # We didn't create it, so we will update as long as ISE is the source (and we will also update if we created)
+#         if (not created and sa.ise_source) or created:
+#             full_update = True
 
-        if full_update:
-            policy.mapping = binding_name
-            if policy.name != policy_name and policy.cleaned_name() != policy_name:
-                policy.name = policy_name
-            policy.description = policy_desc
-            policy.source_group = src_grp.tag
-            policy.dest_group = dst_grp.tag
-            acl_set = []
-            acls = ACLData.objects.filter(source_id__in=iseemc["sgacls"])
-            for a in acls:
-                acl_set.append(a.acl)
-            policy.acl.set(acl_set)
-            policy.save()
+#         if full_update:
+#             policy.mapping = binding_name
+#             if policy.name != policy_name and policy.cleaned_name() != policy_name:
+#                 policy.name = policy_name
+#             policy.description = policy_desc
+#             policy.source_group = src_grp.tag
+#             policy.dest_group = dst_grp.tag
+#             acl_set = []
+#             acls = ACLData.objects.filter(source_id__in=iseemc["sgacls"])
+#             for a in acls:
+#                 acl_set.append(a.acl)
+#             policy.acl.set(acl_set)
+#             policy.save()
 
-        # Regardless of source, we will update the data that is specific to ISE
-        PolicyData.objects.update_or_create(policy=policy, iseserver=sa.iseserver,
-                                            defaults={"source_id": iseemc["id"],
-                                                      "source_data": json.dumps(iseemc),
-                                                      "last_sync":
-                                                          make_aware(datetime.datetime.now())})
+#         # Regardless of source, we will update the data that is specific to ISE
+#         PolicyData.objects.update_or_create(policy=policy, iseserver=sa.iseserver,
+#                                             defaults={"source_id": iseemc["id"],
+#                                                       "source_data": json.dumps(iseemc),
+#                                                       "last_sync":
+#                                                           make_aware(datetime.datetime.now())})
 
-        # Now, if the policy is set to sync, we need to push the create/update to Dashboard - which may be one or
-        #  more organizations
-        if policy.do_sync:
-            dashboard = meraki.DashboardAPI(base_url=sa.dashboard.baseurl, api_key=sa.dashboard.apikey,
-                                            print_console=False, output_log=False,
-                                            caller=settings.CUSTOM_UA, suppress_logging=True)
-            for org in sa.dashboard.organization.all():
-                td, created = PolicyData.objects.get_or_create(policy=policy, organization=org)
-                dash_policies = meraki_read_sgpolicy(dashboard, org.orgid)
-                match_policy = None
-                for dash_policy in dash_policies:
-                    binding_id = "s" + str(dash_policy["srcGroupId"]) + "-d" + str(dash_policy["dstGroupId"])
-                    # if we have policydata, that means the policy should exist and we need to update it
-                    if not created and td.source_id == str(binding_id):
-                        match_policy = dash_policy
-                    # if we do not have policydata (or if the source id is missing), the policy probably doesn't exist.
-                    #  check by policy name to double check
-                    if (created or td.source_id is None) and dash_policy["name"] == changed_name:
-                        match_policy = dash_policy
-                    # if we found a match, update policydata
-                    if match_policy:
-                        td.source_data = match_policy
-                        td.source_id = binding_id
-                        td.last_update = make_aware(datetime.datetime.now())
-                        td.last_update_state = "True"
-                        td.last_update_data = match_policy
-                        td.save()
-                        break
+#         # Now, if the policy is set to sync, we need to push the create/update to Dashboard - which may be one or
+#         #  more organizations
+#         if policy.do_sync:
+#             dashboard = meraki.DashboardAPI(base_url=sa.dashboard.baseurl, api_key=sa.dashboard.apikey,
+#                                             print_console=False, output_log=False,
+#                                             caller=settings.CUSTOM_UA, suppress_logging=True)
+#             for org in sa.dashboard.organization.all():
+#                 td, created = PolicyData.objects.get_or_create(policy=policy, organization=org)
+#                 dash_policies = meraki_read_sgpolicy(dashboard, org.orgid)
+#                 match_policy = None
+#                 for dash_policy in dash_policies:
+#                     binding_id = "s" + str(dash_policy["srcGroupId"]) + "-d" + str(dash_policy["dstGroupId"])
+#                     # if we have policydata, that means the policy should exist and we need to update it
+#                     if not created and td.source_id == str(binding_id):
+#                         match_policy = dash_policy
+#                     # if we do not have policydata (or if the source id is missing), the policy probably doesn't exist.
+#                     #  check by policy name to double check
+#                     if (created or td.source_id is None) and dash_policy["name"] == changed_name:
+#                         match_policy = dash_policy
+#                     # if we found a match, update policydata
+#                     if match_policy:
+#                         td.source_data = match_policy
+#                         td.source_id = binding_id
+#                         td.last_update = make_aware(datetime.datetime.now())
+#                         td.last_update_state = "True"
+#                         td.last_update_data = match_policy
+#                         td.save()
+#                         break
 
-                srcsgt, dstsgt = td.lookup_sgt_data(td)
-                sgacl = td.lookup_sgacl_data(td)
-                acls = []
-                if sgacl:
-                    for s in sgacl:
-                        acls.append(s.source_id)
+#                 srcsgt, dstsgt = td.lookup_sgt_data(td)
+#                 sgacl = td.lookup_sgacl_data(td)
+#                 acls = []
+#                 if sgacl:
+#                     for s in sgacl:
+#                         acls.append(s.source_id)
 
-                if match_policy:
-                    if sa.ise_source:
-                        ret = meraki_update_sgpolicy(dashboard, org.orgid, name=policy.name,
-                                                     description=policy.description,
-                                                     srcGroupId=srcsgt.source_id, dstGroupId=dstsgt.source_id,
-                                                     aclIds=acls,
-                                                     catchAllRule=td.lookup_acl_catchall(td),
-                                                     bindingEnabled=True, monitorModeEnabled=False)
-                    else:
-                        ret = {"error": "Meraki is authoritative source; not pushing update from ISE"}
-                else:
-                    ret = meraki_update_sgpolicy(dashboard, org.orgid, name=policy.name,
-                                                 description=policy.description,
-                                                 srcGroupId=srcsgt.source_id, dstGroupId=dstsgt.source_id,
-                                                 aclIds=acls,
-                                                 catchAllRule=td.lookup_acl_catchall(td),
-                                                 bindingEnabled=True, monitorModeEnabled=False)
-                td.last_update_data = json.dumps(ret)
-                if ret and "srcGroupId" in ret:
-                    binding_id = "s" + str(ret["srcGroupId"]) + "-d" + str(ret["dstGroupId"])
-                    td.last_update_state = "True"
-                    td.source_id = binding_id
-                    td.source_data = json.dumps(ret)
-                else:
-                    td.last_update_state = "False"
-                td.last_update = make_aware(datetime.datetime.now())
-                td.save()
+#                 if match_policy:
+#                     if sa.ise_source:
+#                         ret = meraki_update_sgpolicy(dashboard, org.orgid, name=policy.name,
+#                                                      description=policy.description,
+#                                                      srcGroupId=srcsgt.source_id, dstGroupId=dstsgt.source_id,
+#                                                      aclIds=acls,
+#                                                      catchAllRule=td.lookup_acl_catchall(td),
+#                                                      bindingEnabled=True, monitorModeEnabled=False)
+#                     else:
+#                         ret = {"error": "Meraki is authoritative source; not pushing update from ISE"}
+#                 else:
+#                     ret = meraki_update_sgpolicy(dashboard, org.orgid, name=policy.name,
+#                                                  description=policy.description,
+#                                                  srcGroupId=srcsgt.source_id, dstGroupId=dstsgt.source_id,
+#                                                  aclIds=acls,
+#                                                  catchAllRule=td.lookup_acl_catchall(td),
+#                                                  bindingEnabled=True, monitorModeEnabled=False)
+#                 td.last_update_data = json.dumps(ret)
+#                 if ret and "srcGroupId" in ret:
+#                     binding_id = "s" + str(ret["srcGroupId"]) + "-d" + str(ret["dstGroupId"])
+#                     td.last_update_state = "True"
+#                     td.source_id = binding_id
+#                     td.source_data = json.dumps(ret)
+#                 else:
+#                     td.last_update_state = "False"
+#                 td.last_update = make_aware(datetime.datetime.now())
+#                 td.save()
+#
